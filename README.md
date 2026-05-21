@@ -110,6 +110,20 @@ Human: Remember that Minigraf stores agent memory.
 AI: Got it. I will use Minigraf-backed chat history.
 ```
 
+## Ecosystem Crates
+
+### minigraf-algorithms
+
+`minigraf-algorithms/` is a standalone crate for graph algorithms that operate
+on Minigraf data. It lives outside Minigraf core so traversal helpers can evolve
+as opt-in ecosystem utilities without enlarging the embedded database API.
+
+Run:
+
+```sh
+cargo test -p minigraf-algorithms
+```
+
 ### LangChain.js
 
 Implements `BaseChatMessageHistory` from `@langchain/core/chat_history` with

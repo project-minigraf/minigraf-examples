@@ -1,0 +1,13 @@
+[package]
+name = "minigraf-algorithms"
+version = "0.1.0"
+edition = "2024"
+description = "Graph algorithms for Minigraf ecosystem crates"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/project-minigraf/minigraf-examples"
+readme = "README.md"
+
+[dependencies]
+anyhow = "1.0"
+minigraf = "1.1"
+uuid = "1"
