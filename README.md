@@ -76,3 +76,61 @@ Audit log: recorded policy approval and superseding revision.
 Audit log: queried the current policy owner.
 Audit log: queried transaction-time history for the earlier owner.
 ```
+
+## LangChain Integrations
+
+The LangChain examples use the published language bindings directly:
+
+- Python: `minigraf==1.1.1`
+- Node.js: `minigraf@1.1.1`
+
+### Python LangChain
+
+Implements `BaseChatMessageHistory` from `langchain-core` with Minigraf-backed
+message storage.
+
+Install prerequisites:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r integrations/langchain-python/requirements.txt
+```
+
+Run:
+
+```sh
+python integrations/langchain-python/minigraf_chat_history.py
+```
+
+Expected output:
+
+```text
+Human: Remember that Minigraf stores agent memory.
+AI: Got it. I will use Minigraf-backed chat history.
+```
+
+### LangChain.js
+
+Implements `BaseChatMessageHistory` from `@langchain/core/chat_history` with
+Minigraf-backed message storage.
+
+Install prerequisites:
+
+```sh
+cd integrations/langchain-js
+npm install
+```
+
+Run:
+
+```sh
+npm start
+```
+
+Expected output:
+
+```text
+Human: Remember that Minigraf stores agent memory.
+AI: Got it. I will use Minigraf-backed chat history.
+```
