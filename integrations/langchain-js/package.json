@@ -1,0 +1,14 @@
+{
+  "name": "minigraf-langchain-js-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node minigraf-chat-history.mjs",
+    "check": "node --check minigraf-chat-history.mjs"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.0.0",
+    "minigraf": "1.1.1"
+  }
+}
