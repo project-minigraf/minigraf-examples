@@ -271,6 +271,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "minigraf-algorithms"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "minigraf",
+ "uuid",
+]
+
+[[package]]
 name = "minigraf-examples"
 version = "0.1.0"
 dependencies = [
