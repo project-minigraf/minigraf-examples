@@ -100,6 +100,48 @@ fn minigraf_graph_loads_edges_for_attribute() {
     assert_eq!(reachable[2], d);
 }
 
+#[test]
+fn minigraf_graph_load_simple_attribute() {
+    let db = Minigraf::in_memory().unwrap();
+    // Direct-attribute edge shape: [?from :parent ?to] — use a chain so each
+    // node has at most one outgoing edge, avoiding single-valued attribute conflicts.
+    db.execute(
+        r#"(transact [[:a :node/name "a"] [:b :node/name "b"] [:c :node/name "c"]
+                      [:a :parent :b] [:b :parent :c]])"#,
+    )
+    .unwrap();
+
+    let graph = MinigrafGraph::load(&db, ":parent").unwrap();
+    let a = query_one(&db, r#"(query [:find ?node :where [?node :node/name "a"]])"#);
+    let b = query_one(&db, r#"(query [:find ?node :where [?node :node/name "b"]])"#);
+    let c = query_one(&db, r#"(query [:find ?node :where [?node :node/name "c"]])"#);
+
+    let reachable = reachable(&graph, &a);
+    assert_eq!(reachable.len(), 2);
+    assert!(reachable.contains(&b));
+    assert!(reachable.contains(&c));
+}
+
+#[test]
+fn load_rejects_attribute_without_leading_colon() {
+    let db = Minigraf::in_memory().unwrap();
+    assert!(MinigrafGraph::load(&db, "follows").is_err());
+    assert!(MinigrafGraph::load_edge_entities(&db, "follows", ":to").is_err());
+}
+
+#[test]
+fn load_rejects_bare_colon_attribute() {
+    let db = Minigraf::in_memory().unwrap();
+    assert!(MinigrafGraph::load(&db, ":").is_err());
+}
+
+#[test]
+fn load_rejects_attribute_with_unsupported_characters() {
+    let db = Minigraf::in_memory().unwrap();
+    assert!(MinigrafGraph::load(&db, ":bad attr").is_err());
+    assert!(MinigrafGraph::load(&db, ":bad@attr").is_err());
+}
+
 fn query_one(db: &Minigraf, query: &str) -> Value {
     let QueryResult::QueryResults { results, .. } = db.execute(query).unwrap() else {
         panic!("expected query results");

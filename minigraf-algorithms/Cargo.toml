@@ -6,8 +6,10 @@ description = "Graph algorithms for Minigraf ecosystem crates"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/project-minigraf/minigraf-examples"
 readme = "README.md"
+keywords = ["graph", "minigraf", "algorithms", "bfs", "traversal"]
+categories = ["data-structures", "database-interfaces"]
 
 [dependencies]
 anyhow = "1.0"
 minigraf = "1.1"
-uuid = "1"
+uuid = { version = "1", features = ["v5"] }

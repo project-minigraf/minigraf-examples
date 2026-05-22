@@ -54,6 +54,14 @@ pub struct MinigrafGraph {
 
 impl MinigrafGraph {
     /// Loads all facts matching `[?from edge_attribute ?to]` into an in-memory graph.
+    ///
+    /// # Node normalization
+    ///
+    /// `Value::Keyword` values returned by the query are converted to `Value::Ref`
+    /// using a derived UUID. Use the values returned by the graph itself or obtained
+    /// by querying the database when constructing start nodes for traversal — do not
+    /// pass manually constructed `Value::Keyword` literals to `reachable` or similar
+    /// functions, as they will not match the normalized keys.
     pub fn load(db: &Minigraf, edge_attribute: &str) -> Result<Self> {
         validate_attribute(edge_attribute)?;
 
@@ -63,16 +71,8 @@ impl MinigrafGraph {
             bail!("expected query results when loading graph edges");
         };
 
-        let mut edges = Vec::with_capacity(results.len());
-        for row in results {
-            let [from, to]: [Value; 2] = row
-                .try_into()
-                .map_err(|_| anyhow::anyhow!("expected two columns for graph edge query"))?;
-            edges.push((normalize_node(from), normalize_node(to)));
-        }
-
         Ok(Self {
-            edges: EdgeList::from_edges(edges),
+            edges: parse_edge_results(results)?,
         })
     }
 
@@ -86,6 +86,14 @@ impl MinigrafGraph {
     /// [:edge-2 :edge/from :a]
     /// [:edge-2 :edge/to :c]
     /// ```
+    ///
+    /// # Node normalization
+    ///
+    /// `Value::Keyword` values returned by the query are converted to `Value::Ref`
+    /// using a derived UUID. Use the values returned by the graph itself or obtained
+    /// by querying the database when constructing start nodes for traversal — do not
+    /// pass manually constructed `Value::Keyword` literals to `reachable` or similar
+    /// functions, as they will not match the normalized keys.
     pub fn load_edge_entities(
         db: &Minigraf,
         from_attribute: &str,
@@ -102,16 +110,8 @@ impl MinigrafGraph {
             bail!("expected query results when loading graph edges");
         };
 
-        let mut edges = Vec::with_capacity(results.len());
-        for row in results {
-            let [from, to]: [Value; 2] = row
-                .try_into()
-                .map_err(|_| anyhow::anyhow!("expected two columns for graph edge query"))?;
-            edges.push((normalize_node(from), normalize_node(to)));
-        }
-
         Ok(Self {
-            edges: EdgeList::from_edges(edges),
+            edges: parse_edge_results(results)?,
         })
     }
 }
@@ -141,6 +141,17 @@ where
     }
 
     result
+}
+
+fn parse_edge_results(results: Vec<Vec<Value>>) -> Result<EdgeList> {
+    let mut edges = Vec::with_capacity(results.len());
+    for row in results {
+        let [from, to]: [Value; 2] = row
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("expected two columns for graph edge query"))?;
+        edges.push((normalize_node(from), normalize_node(to)));
+    }
+    Ok(EdgeList::from_edges(edges))
 }
 
 fn validate_attribute(attribute: &str) -> Result<()> {
