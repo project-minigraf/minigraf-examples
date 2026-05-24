@@ -234,3 +234,110 @@ fn parse_value_type(tokens: &[String], pos: &mut usize) -> Result<ValueType> {
         ),
     }
 }
+
+// ── Validation logic ──────────────────────────────────────────────────────────
+
+impl Schema {
+    /// Validate a slice of proposed facts against this schema.
+    ///
+    /// Facts are `(entity, attribute, value)` triples, matching the structure
+    /// of a Minigraf `transact` call. The entity is any string identifier (e.g.
+    /// `":alice"` or a UUID string).
+    ///
+    /// Entities whose type does not match any schema block are silently ignored
+    /// (open-world assumption). Returns all violations found, not just the first.
+    ///
+    /// This function is pure — it performs no database access.
+    pub fn validate(&self, facts: &[(&str, &str, Value)]) -> Vec<ValidationError> {
+        // Build per-entity attribute maps from the fact slice.
+        // Later facts for the same (entity, attribute) pair overwrite earlier ones.
+        let mut entity_attrs: HashMap<&str, HashMap<&str, &Value>> = HashMap::new();
+        for (entity, attr, value) in facts {
+            entity_attrs.entry(entity).or_default().insert(attr, value);
+        }
+
+        let mut errors = Vec::new();
+
+        for block in &self.blocks {
+            for (entity, attrs) in &entity_attrs {
+                let has_type = attrs
+                    .get(block.type_attr.as_str())
+                    .map(|v| matches!(v, Value::Keyword(kw) if *kw == block.type_value))
+                    .unwrap_or(false);
+
+                if !has_type {
+                    continue;
+                }
+
+                check_block(block, entity, attrs, &mut errors);
+            }
+        }
+
+        errors
+    }
+}
+
+fn check_block(
+    block: &EntityBlock,
+    entity: &str,
+    attrs: &HashMap<&str, &Value>,
+    errors: &mut Vec<ValidationError>,
+) {
+    for (attr, expected) in &block.required {
+        match attrs.get(attr.as_str()) {
+            None => errors.push(ValidationError {
+                entity: entity.to_string(),
+                kind: ValidationErrorKind::MissingRequiredAttribute {
+                    attribute: attr.clone(),
+                },
+            }),
+            Some(value) => match value_type_of(value) {
+                None => errors.push(ValidationError {
+                    entity: entity.to_string(),
+                    kind: ValidationErrorKind::MissingRequiredAttribute {
+                        attribute: attr.clone(),
+                    },
+                }),
+                Some(actual) if actual != *expected => errors.push(ValidationError {
+                    entity: entity.to_string(),
+                    kind: ValidationErrorKind::TypeMismatch {
+                        attribute: attr.clone(),
+                        expected: expected.clone(),
+                        actual,
+                    },
+                }),
+                Some(_) => {}
+            },
+        }
+    }
+
+    for (attr, expected) in &block.optional {
+        if let Some(value) = attrs.get(attr.as_str()) {
+            if let Some(actual) = value_type_of(value) {
+                if actual != *expected {
+                    errors.push(ValidationError {
+                        entity: entity.to_string(),
+                        kind: ValidationErrorKind::TypeMismatch {
+                            attribute: attr.clone(),
+                            expected: expected.clone(),
+                            actual,
+                        },
+                    });
+                }
+            }
+            // Value::Null on an optional attribute is treated as absent — no violation
+        }
+    }
+}
+
+fn value_type_of(v: &Value) -> Option<ValueType> {
+    match v {
+        Value::String(_) => Some(ValueType::String),
+        Value::Integer(_) => Some(ValueType::Integer),
+        Value::Float(_) => Some(ValueType::Float),
+        Value::Boolean(_) => Some(ValueType::Boolean),
+        Value::Ref(_) => Some(ValueType::Ref),
+        Value::Keyword(_) => Some(ValueType::Keyword),
+        Value::Null => None,
+    }
+}
