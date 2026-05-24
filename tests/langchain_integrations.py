@@ -48,7 +48,7 @@ def test_graphrag_integration_pins_dependencies():
     ).read_text()
 
     assert "minigraf==1.1.1" in requirements
-    assert "chromadb" in requirements
+    assert "chromadb==1.5.9" in requirements
 
 
 def test_graphrag_example_documents_expected_output():

@@ -6,6 +6,8 @@ import chromadb
 from minigraf import MiniGrafDb
 
 
+# EXPECTED_OUTPUT documents the stdout produced by this script. It is also
+# checked by the static tests in tests/langchain_integrations.py.
 EXPECTED_OUTPUT = """\
 Query: "storing time-varying relationships"
 Match: temporal-data
