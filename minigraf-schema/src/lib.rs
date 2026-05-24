@@ -78,6 +78,7 @@ pub enum ValidationErrorKind {
 
 // ── Internal representation ───────────────────────────────────────────────────
 
+#[derive(Debug)]
 struct EntityBlock {
     type_attr: String,
     type_value: String,
@@ -89,6 +90,147 @@ struct EntityBlock {
 ///
 /// Construct with [`Schema::parse`], then call [`Schema::validate`] or
 /// [`Schema::audit`] / [`Schema::audit_as_of`].
+#[derive(Debug)]
 pub struct Schema {
     blocks: Vec<EntityBlock>,
+}
+
+// ── DSL parser ────────────────────────────────────────────────────────────────
+
+impl Schema {
+    /// Parse a schema definition string into a [`Schema`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use minigraf_schema::Schema;
+    ///
+    /// let schema = Schema::parse(r#"
+    ///     entity :entity/_type :person {
+    ///         required :name  String
+    ///         optional :age   Integer
+    ///     }
+    /// "#).unwrap();
+    /// ```
+    pub fn parse(src: &str) -> Result<Self> {
+        let tokens = tokenize(src);
+        let mut pos = 0;
+        let mut blocks: Vec<EntityBlock> = Vec::new();
+
+        while pos < tokens.len() {
+            let t = next_tok(&tokens, &mut pos)?;
+            if t != "entity" {
+                bail!("expected 'entity', got {:?}", t);
+            }
+
+            let type_attr = parse_keyword(&tokens, &mut pos)?;
+            let type_value = parse_keyword(&tokens, &mut pos)?;
+            expect_tok(&tokens, &mut pos, "{")?;
+
+            if blocks
+                .iter()
+                .any(|b| b.type_attr == type_attr && b.type_value == type_value)
+            {
+                bail!(
+                    "duplicate entity block for {} {}",
+                    type_attr,
+                    type_value
+                );
+            }
+
+            let mut required: HashMap<String, ValueType> = HashMap::new();
+            let mut optional: HashMap<String, ValueType> = HashMap::new();
+
+            loop {
+                let t = next_tok(&tokens, &mut pos)?;
+                match t {
+                    "}" => break,
+                    "required" => {
+                        let attr = parse_keyword(&tokens, &mut pos)?;
+                        let vtype = parse_value_type(&tokens, &mut pos)?;
+                        if optional.contains_key(&attr) {
+                            bail!(
+                                "attribute {} appears in both required and optional",
+                                attr
+                            );
+                        }
+                        required.insert(attr, vtype);
+                    }
+                    "optional" => {
+                        let attr = parse_keyword(&tokens, &mut pos)?;
+                        let vtype = parse_value_type(&tokens, &mut pos)?;
+                        if required.contains_key(&attr) {
+                            bail!(
+                                "attribute {} appears in both required and optional",
+                                attr
+                            );
+                        }
+                        optional.insert(attr, vtype);
+                    }
+                    other => bail!(
+                        "expected 'required', 'optional', or '}}', got {:?}",
+                        other
+                    ),
+                }
+            }
+
+            blocks.push(EntityBlock {
+                type_attr,
+                type_value,
+                required,
+                optional,
+            });
+        }
+
+        Ok(Schema { blocks })
+    }
+}
+
+fn tokenize(src: &str) -> Vec<String> {
+    src.replace('{', " { ")
+        .replace('}', " } ")
+        .split_whitespace()
+        .map(str::to_string)
+        .collect()
+}
+
+fn next_tok<'a>(tokens: &'a [String], pos: &mut usize) -> Result<&'a str> {
+    if *pos >= tokens.len() {
+        bail!("unexpected end of input");
+    }
+    let t = tokens[*pos].as_str();
+    *pos += 1;
+    Ok(t)
+}
+
+fn expect_tok(tokens: &[String], pos: &mut usize, expected: &str) -> Result<()> {
+    let t = next_tok(tokens, pos)?;
+    if t != expected {
+        bail!("expected {:?}, got {:?}", expected, t);
+    }
+    Ok(())
+}
+
+fn parse_keyword(tokens: &[String], pos: &mut usize) -> Result<String> {
+    let t = next_tok(tokens, pos)?;
+    if !t.starts_with(':') {
+        bail!("expected keyword starting with ':', got {:?}", t);
+    }
+    Ok(t.to_string())
+}
+
+fn parse_value_type(tokens: &[String], pos: &mut usize) -> Result<ValueType> {
+    let t = next_tok(tokens, pos)?;
+    match t {
+        "String" => Ok(ValueType::String),
+        "Integer" => Ok(ValueType::Integer),
+        "Float" => Ok(ValueType::Float),
+        "Boolean" => Ok(ValueType::Boolean),
+        "Ref" => Ok(ValueType::Ref),
+        "Keyword" => Ok(ValueType::Keyword),
+        other => bail!(
+            "unrecognised type {:?}; expected one of String, Integer, Float, Boolean, Ref, Keyword",
+            other
+        ),
+    }
 }
