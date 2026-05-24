@@ -269,7 +269,7 @@ impl Schema {
                     continue;
                 }
 
-                check_block(block, entity, attrs, &mut errors);
+                check_attrs(block, entity, |a| attrs.get(a).copied(), &mut errors);
             }
         }
 
@@ -277,14 +277,14 @@ impl Schema {
     }
 }
 
-fn check_block(
+fn check_attrs<'v>(
     block: &EntityBlock,
     entity: &str,
-    attrs: &HashMap<&str, &Value>,
+    get: impl Fn(&str) -> Option<&'v Value>,
     errors: &mut Vec<ValidationError>,
 ) {
     for (attr, expected) in &block.required {
-        match attrs.get(attr.as_str()) {
+        match get(attr) {
             None => errors.push(ValidationError {
                 entity: entity.to_string(),
                 kind: ValidationErrorKind::MissingRequiredAttribute {
@@ -312,7 +312,7 @@ fn check_block(
     }
 
     for (attr, expected) in &block.optional {
-        if let Some(value) = attrs.get(attr.as_str()) {
+        if let Some(value) = get(attr) {
             if let Some(actual) = value_type_of(value) {
                 if actual != *expected {
                     errors.push(ValidationError {
@@ -409,8 +409,8 @@ impl Schema {
                     }
                 }
 
-                // Reuse check_block logic — adapt types for owned data.
-                check_block_owned(block, &entity_str, &attrs, &mut errors);
+                // Reuse check_attrs logic — adapt types for owned data.
+                check_attrs(block, &entity_str, |a| attrs.get(a), &mut errors);
             }
         }
 
@@ -418,57 +418,6 @@ impl Schema {
     }
 }
 
-fn check_block_owned(
-    block: &EntityBlock,
-    entity: &str,
-    attrs: &HashMap<String, Value>,
-    errors: &mut Vec<ValidationError>,
-) {
-    for (attr, expected) in &block.required {
-        match attrs.get(attr.as_str()) {
-            None => errors.push(ValidationError {
-                entity: entity.to_string(),
-                kind: ValidationErrorKind::MissingRequiredAttribute {
-                    attribute: attr.clone(),
-                },
-            }),
-            Some(value) => match value_type_of(value) {
-                None => errors.push(ValidationError {
-                    entity: entity.to_string(),
-                    kind: ValidationErrorKind::MissingRequiredAttribute {
-                        attribute: attr.clone(),
-                    },
-                }),
-                Some(actual) if actual != *expected => errors.push(ValidationError {
-                    entity: entity.to_string(),
-                    kind: ValidationErrorKind::TypeMismatch {
-                        attribute: attr.clone(),
-                        expected: expected.clone(),
-                        actual,
-                    },
-                }),
-                Some(_) => {}
-            },
-        }
-    }
-
-    for (attr, expected) in &block.optional {
-        if let Some(value) = attrs.get(attr.as_str()) {
-            if let Some(actual) = value_type_of(value) {
-                if actual != *expected {
-                    errors.push(ValidationError {
-                        entity: entity.to_string(),
-                        kind: ValidationErrorKind::TypeMismatch {
-                            attribute: attr.clone(),
-                            expected: expected.clone(),
-                            actual,
-                        },
-                    });
-                }
-            }
-        }
-    }
-}
 
 /// Format a `Value` as a human-readable entity identifier for error reporting.
 fn entity_display(v: &Value) -> String {
