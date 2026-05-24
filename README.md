@@ -185,3 +185,46 @@ Query: "storing time-varying relationships"
 Match: temporal-data
 Related: graph-db, knowledge-graph
 ```
+
+## LlamaIndex Integration
+
+`MinigrafGraphStore` implements LlamaIndex's `SimpleGraphStore` with Minigraf as the
+backing store. Triplets map directly onto Minigraf's native entity-attribute-value model:
+subjects and predicates become Minigraf keywords (`:myapp`, `:depends-on`), objects are
+string values. The example shows tech-stack dependency evolution: a v1 graph is ingested,
+a dependency is upgraded, the current state is queried via `get_rel_map`, and Minigraf's
+`:as-of <tx>` temporal query recovers the pre-upgrade state from transaction history.
+
+- Python: `minigraf==1.1.1`, `llama-index-core`
+
+### Python LlamaIndex
+
+Subclasses `SimpleGraphStore` from `llama_index.core.graph_stores` with Minigraf-backed
+triplet storage and a raw Datalog pass-through in `query()`.
+
+Install prerequisites:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r integrations/llamaindex-python/requirements.txt
+```
+
+Run:
+
+```sh
+python integrations/llamaindex-python/minigraf_graph_store.py
+```
+
+Expected output:
+
+```text
+myapp depends-on: pydantic==2.0, requests==2.28
+requests depends-on: urllib3==1.26
+myapp at tx 3 depended-on: pydantic==1.10, requests==2.28
+```
+
+**Temporal model:** Each `upsert_triplet` call is one Minigraf transaction. After three
+ingestion calls, `SNAPSHOT_TX = 3`. Retracting and re-asserting a dependency advances the
+transaction counter. `(query [:find ?o :as-of 3 :where [:myapp :depends-on ?o]])` returns
+the dependency set as it existed after transaction 3 — before the upgrade.
