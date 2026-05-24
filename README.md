@@ -148,3 +148,40 @@ Expected output:
 Human: Remember that Minigraf stores agent memory.
 AI: Got it. I will use Minigraf-backed chat history.
 ```
+
+## GraphRAG Integration
+
+The GraphRAG example uses ChromaDB for semantic retrieval and Minigraf for structured
+graph traversal. Entity UUIDs are the explicit bridge between the two stores.
+
+- Python: `minigraf==1.1.1`, `chromadb`
+
+### Python GraphRAG
+
+Populates a six-node concept graph in Minigraf, indexes entity descriptions in an
+in-memory ChromaDB collection, retrieves the closest entity by semantic similarity,
+then traverses its graph neighbours.
+
+Install prerequisites:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r integrations/graphrag-python/requirements.txt
+```
+
+Note: ChromaDB downloads the `all-MiniLM-L6-v2` embedding model (~80 MB) on first run.
+
+Run:
+
+```sh
+python integrations/graphrag-python/graphrag_minigraf.py
+```
+
+Expected output:
+
+```text
+Query: "storing time-varying relationships"
+Match: temporal-data
+Related: graph-db, knowledge-graph
+```
