@@ -34,7 +34,7 @@ Dependencies: `anyhow = "1.0"`, `minigraf = "1.1"`. DSL parser is hand-written â
 
 ## Entity Typing Model
 
-Minigraf has no built-in entity type concept. `minigraf-schema` uses **attribute-based typing**: a designated type attribute (e.g. `:entity/type`) holds a keyword value (e.g. `:person`) that identifies which schema rules apply to that entity.
+Minigraf has no built-in entity type concept. `minigraf-schema` uses **attribute-based typing**: a designated type attribute (e.g. `:entity/_type`) holds a keyword value (e.g. `:person`) that identifies which schema rules apply to that entity.
 
 The type attribute and type value are both defined per schema block in the DSL â€” there is no global convention enforced by the crate.
 
@@ -45,7 +45,7 @@ The type attribute and type value are both defined per schema block in the DSL â
 Schemas are defined as strings parsed at runtime. Each block covers one entity type.
 
 ```
-entity :entity/type :person {
+entity :entity/_type :person {
     required :name    String
     required :email   String
     optional :age     Integer
@@ -53,7 +53,7 @@ entity :entity/type :person {
     optional :org     Ref
 }
 
-entity :entity/type :project {
+entity :entity/_type :project {
     required :name    String
     optional :owner   Ref
     optional :status  Keyword
