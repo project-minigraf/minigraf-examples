@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Result, bail};
-use minigraf::{Minigraf, QueryResult, Value};
+use minigraf::Value;
 
 /// The expected type of a Minigraf attribute value, as declared in a schema block.
 ///

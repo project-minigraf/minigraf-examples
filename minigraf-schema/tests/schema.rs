@@ -236,3 +236,26 @@ fn validate_open_world_entity_with_no_schema_block_produces_no_violations() {
 
     assert!(schema.validate(facts).is_empty());
 }
+
+#[test]
+fn validate_null_on_required_attribute_treated_as_missing() {
+    let schema = Schema::parse(r#"
+        entity :entity/_type :person {
+            required :name String
+        }
+    "#).unwrap();
+
+    use minigraf::Value;
+    let facts: &[(&str, &str, Value)] = &[
+        (":alice", ":entity/_type", Value::Keyword(":person".into())),
+        (":alice", ":name",         Value::Null),
+    ];
+
+    let errors = schema.validate(facts);
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].kind,
+        minigraf_schema::ValidationErrorKind::MissingRequiredAttribute { attribute }
+        if attribute == ":name"
+    ));
+}
