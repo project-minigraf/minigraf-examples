@@ -348,6 +348,7 @@ impl Schema {
     /// Check all entities in `db` against this schema at their current state.
     ///
     /// Equivalent to `audit_as_of(db, db.current_tx_count())`.
+    #[must_use = "violations are silently discarded if this Result is not used"]
     pub fn audit(&self, db: &Minigraf) -> Result<Vec<ValidationError>> {
         self.audit_as_of(db, db.current_tx_count())
     }
@@ -358,6 +359,7 @@ impl Schema {
     /// [`Minigraf::current_tx_count`] — not a Unix timestamp. Retractions
     /// committed on or before `as_of` are reflected; facts committed after are
     /// invisible.
+    #[must_use = "violations are silently discarded if this Result is not used"]
     pub fn audit_as_of(&self, db: &Minigraf, as_of: u64) -> Result<Vec<ValidationError>> {
         let mut errors = Vec::new();
 
@@ -397,7 +399,9 @@ impl Schema {
                     bail!("expected QueryResults from attribute query");
                 };
 
-                // Build attribute → value map. Last writer wins for duplicates.
+                // Build attribute → value map. Minigraf returns at most one live
+                // value per (entity, attribute) at any given as_of point; the
+                // insert-last behaviour is a safety net, not an expected path.
                 let mut attrs: HashMap<String, Value> = HashMap::new();
                 for attr_row in attr_rows {
                     if let [Value::Keyword(attr), value] = attr_row.as_slice() {
@@ -482,6 +486,8 @@ fn entity_datalog_ref(v: &Value) -> Option<String> {
     match v {
         Value::Keyword(k) => Some(k.clone()),
         Value::Ref(uuid) => Some(format!("#uuid \"{uuid}\"")),
+        // Entities returned by Minigraf type queries are always Keyword or Ref.
+        // None here would indicate an unexpected engine result.
         _ => None,
     }
 }
