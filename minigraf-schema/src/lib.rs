@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 
 use anyhow::{Result, bail};
-use minigraf::Value;
+use minigraf::{Minigraf, QueryResult, Value};
 
 /// The expected type of a Minigraf attribute value, as declared in a schema block.
 ///
@@ -339,5 +339,149 @@ fn value_type_of(v: &Value) -> Option<ValueType> {
         Value::Ref(_) => Some(ValueType::Ref),
         Value::Keyword(_) => Some(ValueType::Keyword),
         Value::Null => None,
+    }
+}
+
+// ── Audit ─────────────────────────────────────────────────────────────────────
+
+impl Schema {
+    /// Check all entities in `db` against this schema at their current state.
+    ///
+    /// Equivalent to `audit_as_of(db, db.current_tx_count())`.
+    pub fn audit(&self, db: &Minigraf) -> Result<Vec<ValidationError>> {
+        self.audit_as_of(db, db.current_tx_count())
+    }
+
+    /// Check all entities in `db` against this schema as of transaction `as_of`.
+    ///
+    /// `as_of` is the monotonic transaction counter from
+    /// [`Minigraf::current_tx_count`] — not a Unix timestamp. Retractions
+    /// committed on or before `as_of` are reflected; facts committed after are
+    /// invisible.
+    pub fn audit_as_of(&self, db: &Minigraf, as_of: u64) -> Result<Vec<ValidationError>> {
+        let mut errors = Vec::new();
+
+        for block in &self.blocks {
+            // Step 1: find all entities of this type at this point in time.
+            let type_query = format!(
+                "(query [:find ?e :as-of {as_of} :where [?e {type_attr} {type_value}]])",
+                as_of = as_of,
+                type_attr = block.type_attr,
+                type_value = block.type_value,
+            );
+            let result = db.execute(&type_query)?;
+            let QueryResult::QueryResults { results: entity_rows, .. } = result else {
+                bail!("expected QueryResults from entity type query");
+            };
+
+            for row in entity_rows {
+                let entity_value = match row.into_iter().next() {
+                    Some(v) => v,
+                    None => continue,
+                };
+
+                let entity_str = entity_display(&entity_value);
+                let entity_ref = match entity_datalog_ref(&entity_value) {
+                    Some(s) => s,
+                    None => continue,
+                };
+
+                // Step 2: get all attributes for this entity at this point in time.
+                let attr_query = format!(
+                    "(query [:find ?a ?v :as-of {as_of} :where [{entity_ref} ?a ?v]])",
+                    as_of = as_of,
+                    entity_ref = entity_ref,
+                );
+                let attr_result = db.execute(&attr_query)?;
+                let QueryResult::QueryResults { results: attr_rows, .. } = attr_result else {
+                    bail!("expected QueryResults from attribute query");
+                };
+
+                // Build attribute → value map. Last writer wins for duplicates.
+                let mut attrs: HashMap<String, Value> = HashMap::new();
+                for attr_row in attr_rows {
+                    if let [Value::Keyword(attr), value] = attr_row.as_slice() {
+                        attrs.insert(attr.clone(), value.clone());
+                    }
+                }
+
+                // Reuse check_block logic — adapt types for owned data.
+                check_block_owned(block, &entity_str, &attrs, &mut errors);
+            }
+        }
+
+        Ok(errors)
+    }
+}
+
+fn check_block_owned(
+    block: &EntityBlock,
+    entity: &str,
+    attrs: &HashMap<String, Value>,
+    errors: &mut Vec<ValidationError>,
+) {
+    for (attr, expected) in &block.required {
+        match attrs.get(attr.as_str()) {
+            None => errors.push(ValidationError {
+                entity: entity.to_string(),
+                kind: ValidationErrorKind::MissingRequiredAttribute {
+                    attribute: attr.clone(),
+                },
+            }),
+            Some(value) => match value_type_of(value) {
+                None => errors.push(ValidationError {
+                    entity: entity.to_string(),
+                    kind: ValidationErrorKind::MissingRequiredAttribute {
+                        attribute: attr.clone(),
+                    },
+                }),
+                Some(actual) if actual != *expected => errors.push(ValidationError {
+                    entity: entity.to_string(),
+                    kind: ValidationErrorKind::TypeMismatch {
+                        attribute: attr.clone(),
+                        expected: expected.clone(),
+                        actual,
+                    },
+                }),
+                Some(_) => {}
+            },
+        }
+    }
+
+    for (attr, expected) in &block.optional {
+        if let Some(value) = attrs.get(attr.as_str()) {
+            if let Some(actual) = value_type_of(value) {
+                if actual != *expected {
+                    errors.push(ValidationError {
+                        entity: entity.to_string(),
+                        kind: ValidationErrorKind::TypeMismatch {
+                            attribute: attr.clone(),
+                            expected: expected.clone(),
+                            actual,
+                        },
+                    });
+                }
+            }
+        }
+    }
+}
+
+/// Format a `Value` as a human-readable entity identifier for error reporting.
+fn entity_display(v: &Value) -> String {
+    match v {
+        Value::Keyword(k) => k.clone(),
+        Value::Ref(uuid) => uuid.to_string(),
+        other => format!("{other:?}"),
+    }
+}
+
+/// Format a `Value` as the Datalog inline entity reference used in query strings.
+///
+/// Returns `None` for value types that cannot appear in the entity position.
+fn entity_datalog_ref(v: &Value) -> Option<String> {
+    match v {
+        Value::Keyword(k) => Some(k.clone()),
+        Value::Ref(uuid) => Some(format!("#uuid \"{uuid}\"")),
+        _ => None,
     }
 }

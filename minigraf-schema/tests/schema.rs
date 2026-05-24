@@ -217,6 +217,102 @@ fn validate_type_mismatch_on_optional_attribute_when_present() {
     ));
 }
 
+// ── audit — passing ───────────────────────────────────────────────────────────
+
+#[test]
+fn audit_passing_db_state_satisfies_schema() {
+    let schema = Schema::parse(r#"
+        entity :entity/_type :person {
+            required :name  String
+            required :email String
+            optional :age   Integer
+        }
+    "#).unwrap();
+
+    let db = minigraf::Minigraf::in_memory().unwrap();
+    db.execute(r#"(transact [
+        [:alice :entity/_type :person]
+        [:alice :name "Alice"]
+        [:alice :email "alice@example.com"]
+        [:alice :age 30]
+    ])"#).unwrap();
+
+    let errors = schema.audit(&db).unwrap();
+    assert!(errors.is_empty(), "expected no errors, got: {:?}", errors);
+}
+
+// ── audit — failing ───────────────────────────────────────────────────────────
+
+#[test]
+fn audit_missing_required_attribute_after_retraction() {
+    let schema = Schema::parse(r#"
+        entity :entity/_type :person {
+            required :name  String
+            required :email String
+        }
+    "#).unwrap();
+
+    let db = minigraf::Minigraf::in_memory().unwrap();
+    db.execute(r#"(transact [
+        [:alice :entity/_type :person]
+        [:alice :name "Alice"]
+        [:alice :email "alice@example.com"]
+    ])"#).unwrap();
+
+    // Retract :email — entity should now fail validation
+    db.execute(r#"(retract [[:alice :email "alice@example.com"]])"#).unwrap();
+
+    let errors = schema.audit(&db).unwrap();
+    assert_eq!(errors.len(), 1);
+    assert!(matches!(
+        &errors[0].kind,
+        minigraf_schema::ValidationErrorKind::MissingRequiredAttribute { attribute }
+        if attribute == ":email"
+    ));
+}
+
+// ── audit_as_of ───────────────────────────────────────────────────────────────
+
+#[test]
+fn audit_as_of_entity_valid_before_retraction_invalid_after() {
+    let schema = Schema::parse(r#"
+        entity :entity/_type :person {
+            required :name  String
+            required :email String
+        }
+    "#).unwrap();
+
+    let db = minigraf::Minigraf::in_memory().unwrap();
+    db.execute(r#"(transact [
+        [:alice :entity/_type :person]
+        [:alice :name "Alice"]
+        [:alice :email "alice@example.com"]
+    ])"#).unwrap();
+    let tx_before = db.current_tx_count();
+
+    db.execute(r#"(retract [[:alice :email "alice@example.com"]])"#).unwrap();
+    let tx_after = db.current_tx_count();
+
+    let errors_before = schema.audit_as_of(&db, tx_before).unwrap();
+    assert!(
+        errors_before.is_empty(),
+        "expected no errors at tx {tx_before}, got: {:?}",
+        errors_before
+    );
+
+    let errors_after = schema.audit_as_of(&db, tx_after).unwrap();
+    assert_eq!(
+        errors_after.len(), 1,
+        "expected 1 error at tx {tx_after}, got: {:?}",
+        errors_after
+    );
+    assert!(matches!(
+        &errors_after[0].kind,
+        minigraf_schema::ValidationErrorKind::MissingRequiredAttribute { attribute }
+        if attribute == ":email"
+    ));
+}
+
 // ── validate — open-world ─────────────────────────────────────────────────────
 
 #[test]
