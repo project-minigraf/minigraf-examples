@@ -20,7 +20,11 @@ myapp at tx 3 depended-on: pydantic==1.10, requests==2.28"""
 
 
 def _to_kw(s: str) -> str:
-    """Convert a plain string to a Minigraf keyword: 'depends-on' -> ':depends-on'."""
+    """Convert a plain string to a Minigraf keyword: 'depends-on' -> ':depends-on'.
+
+    Input is lowercased and any character outside [a-z0-9-] (including '/', '.', '_')
+    is replaced with '-'. Callers must ensure distinct inputs produce distinct keywords.
+    """
     slug = re.sub(r"[^a-z0-9-]", "-", s.lower()).strip("-")
     return f":{slug}"
 
@@ -69,7 +73,11 @@ class MinigrafGraphStore(SimpleGraphStore):
         depth: int = 2,
         limit: int = 30,
     ) -> Dict[str, List[List[str]]]:
-        """Return a map of subject -> [[relation, object], ...] for each subject."""
+        """Return a map of subject -> [[relation, object], ...] for each subject.
+
+        depth and limit are accepted for interface compatibility but are not applied;
+        all edges for each subject are returned.
+        """
         if subjs is None:
             return {}
         return {subj: self.get(subj) for subj in subjs}
@@ -93,7 +101,7 @@ class MinigrafGraphStore(SimpleGraphStore):
     def get_schema(self, refresh: bool = False) -> str:
         return ""
 
-    def persist(self, persist_path: str = "./storage/graph_store.json", fs=None) -> None:
+    def persist(self, persist_path: str = "./storage/graph_store.json", fs: Optional[Any] = None) -> None:
         pass
 
 
