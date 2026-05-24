@@ -69,3 +69,14 @@ def test_llamaindex_integration_pins_dependencies():
 
     assert "minigraf==1.1.1" in requirements
     assert "llama-index-core" in requirements
+
+
+def test_llamaindex_example_documents_expected_output():
+    example = (
+        ROOT / "integrations" / "llamaindex-python" / "minigraf_graph_store.py"
+    ).read_text()
+
+    assert "class MinigrafGraphStore(SimpleGraphStore)" in example
+    assert "myapp depends-on: pydantic==2.0, requests==2.28" in example
+    assert "requests depends-on: urllib3==1.26" in example
+    assert "myapp at tx 3 depended-on: pydantic==1.10, requests==2.28" in example
