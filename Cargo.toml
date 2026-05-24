@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [workspace]
-members = ["minigraf-algorithms"]
+members = ["minigraf-algorithms", "minigraf-schema"]
 
 [dependencies]
 anyhow = "1.0"
