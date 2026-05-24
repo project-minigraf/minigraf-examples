@@ -96,7 +96,7 @@ def main() -> None:
     _populate_minigraf(db)
 
     # Step 2: populate ChromaDB — UUIDs from Minigraf are the document IDs
-    client = chromadb.Client()
+    client = chromadb.EphemeralClient()
     collection = client.create_collection("concepts")
     _populate_chromadb(db, collection)
 
