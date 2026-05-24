@@ -60,3 +60,12 @@ def test_graphrag_example_documents_expected_output():
     assert 'Query: "storing time-varying relationships"' in example
     assert "Match: temporal-data" in example
     assert "Related: graph-db, knowledge-graph" in example
+
+
+def test_llamaindex_integration_pins_dependencies():
+    requirements = (
+        ROOT / "integrations" / "llamaindex-python" / "requirements.txt"
+    ).read_text()
+
+    assert "minigraf==1.1.1" in requirements
+    assert "llama-index-core" in requirements
