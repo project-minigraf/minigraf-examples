@@ -269,7 +269,7 @@ impl Schema {
                     continue;
                 }
 
-                check_attrs(block, entity, |a| attrs.get(a).copied(), &mut errors);
+                check_block(block, entity, attrs, &mut errors);
             }
         }
 
@@ -277,14 +277,14 @@ impl Schema {
     }
 }
 
-fn check_attrs<'v>(
+fn check_block(
     block: &EntityBlock,
     entity: &str,
-    get: impl Fn(&str) -> Option<&'v Value>,
+    attrs: &HashMap<&str, &Value>,
     errors: &mut Vec<ValidationError>,
 ) {
     for (attr, expected) in &block.required {
-        match get(attr) {
+        match attrs.get(attr.as_str()) {
             None => errors.push(ValidationError {
                 entity: entity.to_string(),
                 kind: ValidationErrorKind::MissingRequiredAttribute {
@@ -312,7 +312,7 @@ fn check_attrs<'v>(
     }
 
     for (attr, expected) in &block.optional {
-        if let Some(value) = get(attr) {
+        if let Some(value) = attrs.get(attr.as_str()) {
             if let Some(actual) = value_type_of(value) {
                 if actual != *expected {
                     errors.push(ValidationError {
@@ -409,8 +409,10 @@ impl Schema {
                     }
                 }
 
-                // Reuse check_attrs logic — adapt types for owned data.
-                check_attrs(block, &entity_str, |a| attrs.get(a), &mut errors);
+                // Convert owned attrs to borrowed before calling check_block.
+                let borrowed: HashMap<&str, &Value> =
+                    attrs.iter().map(|(k, v)| (k.as_str(), v)).collect();
+                check_block(block, &entity_str, &borrowed, &mut errors);
             }
         }
 
