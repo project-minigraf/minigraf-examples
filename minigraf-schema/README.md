@@ -35,8 +35,15 @@ let facts = &[
 ];
 let violations = schema.validate(facts);
 
-// Audit current DB state
+// Set up a database with facts
 let db = minigraf::Minigraf::in_memory().unwrap();
+db.execute(r#"(transact [
+    [:alice :entity/_type :person]
+    [:alice :name "Alice"]
+    [:alice :email "alice@example.com"]
+])"#).unwrap();
+
+// Audit current DB state
 let violations = schema.audit(&db).unwrap();
 
 // Audit as of a past transaction
