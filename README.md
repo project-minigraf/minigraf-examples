@@ -58,6 +58,28 @@ Offline mobile: selected the pending changes for later sync.
 Offline mobile: marked the synced task without losing local history.
 ```
 
+### State Machine
+
+Initializes an order in `:awaiting-payment` and stores legal transitions as Minigraf facts.
+A Datalog guard query checks whether an event is legal from the order's current state.
+A legal payment transition is accepted; an illegal ship event is rejected. The state
+update is an atomic write transaction containing a `retract` and a `transact`. A
+transaction-time replay with `:as-of 1` shows the prior state.
+
+Run:
+
+```sh
+cargo run --example state_machine
+```
+
+Expected output:
+
+```text
+State machine: accepted payment by querying transition facts as the guard.
+State machine: rejected shipping from awaiting-payment before the transition.
+State machine: replayed transaction history to explain the prior state.
+```
+
 ### Audit Log
 
 Records a policy approval, supersedes the owner, then queries both current state

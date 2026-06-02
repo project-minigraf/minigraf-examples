@@ -41,3 +41,17 @@ fn audit_log_tracks_historical_decisions() {
         ]
     );
 }
+
+#[test]
+fn state_machine_guards_transitions_and_replays_history() {
+    let lines = scenarios::state_machine().expect("state machine scenario runs");
+
+    assert_eq!(
+        lines,
+        [
+            "State machine: accepted payment by querying transition facts as the guard.",
+            "State machine: rejected shipping from awaiting-payment before the transition.",
+            "State machine: replayed transaction history to explain the prior state."
+        ]
+    );
+}
