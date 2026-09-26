@@ -12,7 +12,31 @@ small while users can opt into traversal helpers when they need them.
 - `GraphView`: read-only graph access trait used by algorithms.
 - `EdgeList`: in-memory directed graph for tests and preloaded data.
 - `MinigrafGraph`: adapter that loads graph edges from Minigraf query results.
-- `reachable`: breadth-first reachability from a start node.
+
+### Algorithms
+
+Each algorithm is a free function over `&impl GraphView`, so it works the same
+on an `EdgeList` or a `MinigrafGraph`. `V` is the number of nodes and `E` is
+the number of edges.
+
+| Function | What it returns | Time |
+| --- | --- | --- |
+| `reachable(graph, start)` | Nodes reachable from `start`, breadth-first. | O(V + E) |
+| `depth_first(graph, start)` | Nodes reachable from `start`, depth-first (preorder). | O(V + E) |
+| `shortest_path(graph, from, to)` | Minimum-hop path, or `None` if there is no path. | O(V + E) |
+| `topological_sort(graph)` | Nodes ordered so every edge points forward. Returns an error if the graph has a cycle. | O(V + E) |
+| `connected_components(graph)` | Weakly connected components. Edge direction is ignored. | O(V + E) |
+
+Edges are unweighted. `shortest_path` finds the path with the fewest edges.
+
+### Implementing `GraphView`
+
+`GraphView` has two methods:
+
+- `nodes()` returns every node, including nodes with no outgoing edges.
+  Whole-graph algorithms (`topological_sort`, `connected_components`) use it,
+  and use its order to break ties.
+- `outgoing(node)` returns the direct successors of `node`.
 
 ## Minigraf Edge Shape
 

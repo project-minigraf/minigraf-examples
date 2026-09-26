@@ -139,6 +139,8 @@ AI: Got it. I will use Minigraf-backed chat history.
 `minigraf-algorithms/` is a standalone crate for graph algorithms that operate
 on Minigraf data. It lives outside Minigraf core so traversal helpers can evolve
 as opt-in ecosystem utilities without enlarging the embedded database API.
+It includes breadth-first and depth-first traversal, shortest path, topological
+sort, and connected components.
 
 Run:
 
