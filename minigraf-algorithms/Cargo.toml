@@ -1,12 +1,12 @@
 [package]
 name = "minigraf-algorithms"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Graph algorithms for Minigraf ecosystem crates"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/project-minigraf/minigraf-examples"
 readme = "README.md"
-keywords = ["graph", "minigraf", "algorithms", "bfs", "traversal"]
+keywords = ["graph", "minigraf", "algorithms", "traversal", "topological-sort"]
 categories = ["data-structures", "database-interfaces"]
 
 [dependencies]
