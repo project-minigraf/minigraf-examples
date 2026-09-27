@@ -12,4 +12,4 @@ categories = ["data-structures", "database-interfaces"]
 
 [dependencies]
 anyhow = "1.0"
-minigraf = "1.1"
+minigraf = "2.0"

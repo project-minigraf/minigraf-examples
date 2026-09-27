@@ -11,5 +11,5 @@ categories = ["data-structures", "database-interfaces"]
 
 [dependencies]
 anyhow = "1.0"
-minigraf = "1.1"
+minigraf = "2.0"
 uuid = { version = "1", features = ["v5"] }

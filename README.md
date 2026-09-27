@@ -8,14 +8,16 @@ Cargo and uses the published [`minigraf`](https://crates.io/crates/minigraf) cra
 Most scenarios below also have a link to the
 [Minigraf time travel visualizer](https://project-minigraf.github.io/minigraf-visualizer/).
 The link replays the scenario's writes in your browser, so you can step through its
-transactions and see the facts over transaction time and valid time.
+transactions and see the facts over transaction time and valid time. The browser engine
+has no multi-statement write transactions, so where a scenario retracts an old value and
+asserts the new one in one atomic transaction, the visualizer shows two transactions.
 
 ## Prerequisites
 
-- Rust 1.85 or newer for edition 2024 crates.
+- Rust 1.89 or newer (the minimum supported Rust version of `minigraf` 2.x).
 - Cargo with access to crates.io.
-- `minigraf = "1.1"` from crates.io. Cargo currently resolves this to
-  `minigraf v1.1.1`.
+- `minigraf = "2.0"` from crates.io. Cargo currently resolves this to
+  `minigraf v2.0.2`.
 
 Install and verify dependencies:
 
@@ -28,7 +30,8 @@ cargo test
 ### Agentic Memory
 
 Stores user preferences and project context in Minigraf, queries them back for an
-agent response, then writes a correction while keeping transaction-time history.
+agent response, then corrects the preference: one write transaction retracts the old
+value and asserts the new one. The old value stays in transaction-time history.
 
 Run:
 
@@ -44,13 +47,14 @@ Agent memory: retrieved Alice's current project, minigraf-examples.
 Agent memory: wrote a correction with transaction history intact.
 ```
 
-[See this scenario in the time travel visualizer →](https://project-minigraf.github.io/minigraf-visualizer/#data=KHRyYW5zYWN0IFtbOmFsaWNlIDp1c2VyL25hbWUgIkFsaWNlIl0KICBbOmFsaWNlIDp1c2VyL3ByZWZlcmVuY2UgImNvbmNpc2UgdGVjaG5pY2FsIGFuc3dlcnMiXQogIFs6YWxpY2UgOnVzZXIvY3VycmVudC1wcm9qZWN0ICJtaW5pZ3JhZi1leGFtcGxlcyJdXSkKKHRyYW5zYWN0IFtbOmFsaWNlIDp1c2VyL3ByZWZlcmVuY2UgImNvbmNpc2UgYW5zd2VycyB3aXRoIHNvdXJjZSBsaW5rcyJdXSk&title=minigraf-examples:+agentic+memory&vt=any&e=:alice&view=map)
+[See this scenario in the time travel visualizer →](https://project-minigraf.github.io/minigraf-visualizer/#data=KHRyYW5zYWN0IFtbOmFsaWNlIDp1c2VyL25hbWUgIkFsaWNlIl0KICBbOmFsaWNlIDp1c2VyL3ByZWZlcmVuY2UgImNvbmNpc2UgdGVjaG5pY2FsIGFuc3dlcnMiXQogIFs6YWxpY2UgOnVzZXIvY3VycmVudC1wcm9qZWN0ICJtaW5pZ3JhZi1leGFtcGxlcyJdXSkKKHJldHJhY3QgW1s6YWxpY2UgOnVzZXIvcHJlZmVyZW5jZSAiY29uY2lzZSB0ZWNobmljYWwgYW5zd2VycyJdXSkKKHRyYW5zYWN0IFtbOmFsaWNlIDp1c2VyL3ByZWZlcmVuY2UgImNvbmNpc2UgYW5zd2VycyB3aXRoIHNvdXJjZSBsaW5rcyJdXSk&title=minigraf-examples:+agentic+memory&vt=any&e=:alice&view=map)
 Step back to tx 1 to see what the agent remembered before the update.
 
 ### Offline-First Mobile
 
 Stores local task changes while disconnected, queries pending changes for a future
-sync pass, then records a synced state while retaining earlier transaction state.
+sync pass, then marks a task synced by retracting `"pending"` and asserting `"synced"`
+in one write transaction, while retaining earlier transaction state.
 
 Run:
 
@@ -66,7 +70,7 @@ Offline mobile: selected the pending changes for later sync.
 Offline mobile: marked the synced task without losing local history.
 ```
 
-[See this scenario in the time travel visualizer →](https://project-minigraf.github.io/minigraf-visualizer/#data=KHRyYW5zYWN0IFtbOnRhc2stMSA6dGFzay90aXRsZSAiRHJhZnQgdHJpcCBub3RlcyJdCiAgWzp0YXNrLTEgOnN5bmMvc3RhdHVzICJwZW5kaW5nIl0KICBbOnRhc2stMSA6ZGV2aWNlL2lkICJwaG9uZSJdCiAgWzp0YXNrLTIgOnRhc2svdGl0bGUgIkF0dGFjaCByZWNlaXB0IHBob3RvIl0KICBbOnRhc2stMiA6c3luYy9zdGF0dXMgInBlbmRpbmciXQogIFs6dGFzay0yIDpkZXZpY2UvaWQgInBob25lIl1dKQoodHJhbnNhY3QgW1s6dGFzay0xIDpzeW5jL3N0YXR1cyAic3luY2VkIl1dKQ&title=minigraf-examples:+offline-first+mobile&vt=any&e=:task-1&view=map)
+[See this scenario in the time travel visualizer →](https://project-minigraf.github.io/minigraf-visualizer/#data=KHRyYW5zYWN0IFtbOnRhc2stMSA6dGFzay90aXRsZSAiRHJhZnQgdHJpcCBub3RlcyJdCiAgWzp0YXNrLTEgOnN5bmMvc3RhdHVzICJwZW5kaW5nIl0KICBbOnRhc2stMSA6ZGV2aWNlL2lkICJwaG9uZSJdCiAgWzp0YXNrLTIgOnRhc2svdGl0bGUgIkF0dGFjaCByZWNlaXB0IHBob3RvIl0KICBbOnRhc2stMiA6c3luYy9zdGF0dXMgInBlbmRpbmciXQogIFs6dGFzay0yIDpkZXZpY2UvaWQgInBob25lIl1dKQoocmV0cmFjdCBbWzp0YXNrLTEgOnN5bmMvc3RhdHVzICJwZW5kaW5nIl1dKQoodHJhbnNhY3QgW1s6dGFzay0xIDpzeW5jL3N0YXR1cyAic3luY2VkIl1dKQ&title=minigraf-examples:+offline-first+mobile&vt=any&e=:task-1&view=map)
 
 ### State Machine
 
@@ -91,14 +95,14 @@ State machine: replayed transaction history to explain the prior state.
 ```
 
 [See this scenario in the time travel visualizer →](https://project-minigraf.github.io/minigraf-visualizer/#data=KHRyYW5zYWN0IFtbOm9yZGVyLTQyIDpmc20vc3RhdGUgOmF3YWl0aW5nLXBheW1lbnRdCiAgWzp0cmFuc2l0aW9uL3BheW1lbnQtcmVjZWl2ZWQgOmZzbS9mcm9tIDphd2FpdGluZy1wYXltZW50XQogIFs6dHJhbnNpdGlvbi9wYXltZW50LXJlY2VpdmVkIDpmc20vZXZlbnQgOnBheW1lbnQtcmVjZWl2ZWRdCiAgWzp0cmFuc2l0aW9uL3BheW1lbnQtcmVjZWl2ZWQgOmZzbS90byA6cGFpZF0KICBbOnRyYW5zaXRpb24vc2hpcCA6ZnNtL2Zyb20gOnBhaWRdCiAgWzp0cmFuc2l0aW9uL3NoaXAgOmZzbS9ldmVudCA6c2hpcF0KICBbOnRyYW5zaXRpb24vc2hpcCA6ZnNtL3RvIDpzaGlwcGVkXV0pCihydWxlIFsobGVnYWwtbW92ZT8gP29yZGVyID9ldmVudCkKICBbP29yZGVyIDpmc20vc3RhdGUgP2Zyb21dCiAgWz90cmFuc2l0aW9uIDpmc20vZnJvbSA_ZnJvbV0KICBbP3RyYW5zaXRpb24gOmZzbS9ldmVudCA_ZXZlbnRdCiAgWz90cmFuc2l0aW9uIDpmc20vdG8gP3RvXV0pCihyZXRyYWN0IFtbOm9yZGVyLTQyIDpmc20vc3RhdGUgOmF3YWl0aW5nLXBheW1lbnRdXSkKKHRyYW5zYWN0IFtbOm9yZGVyLTQyIDpmc20vc3RhdGUgOnBhaWRdXSkKKHJ1bGUgWyhjdXJyZW50LXN0YXRlPyA_b3JkZXIgP3N0YXRlKQogIFs_b3JkZXIgOmZzbS9zdGF0ZSA_c3RhdGVdXSk&title=minigraf-examples:+state+machine&tx=1&e=:order-42)
-Press → to watch the order move from `:awaiting-payment` to `:paid`. The browser engine
-has no multi-statement write transactions, so the visualizer shows the example's single
-atomic update as two transactions: the retract (tx 2) and the transact (tx 3).
+Press → to watch the order move from `:awaiting-payment` to `:paid`: the retract (tx 2),
+then the transact (tx 3).
 
 ### Audit Log
 
-Records a policy approval, supersedes the owner, then queries both current state
-and an earlier transaction-time view.
+Records a policy approval, supersedes the owner (retract the old owner and assert
+the new one in one write transaction), then queries both current state and an
+earlier transaction-time view.
 
 Run:
 
@@ -114,7 +118,7 @@ Audit log: queried the current policy owner.
 Audit log: queried transaction-time history for the earlier owner.
 ```
 
-[See this scenario in the time travel visualizer →](https://project-minigraf.github.io/minigraf-visualizer/#data=KHRyYW5zYWN0IFtbOnBvbGljeS00MiA6cG9saWN5L3RpdGxlICJEYXRhIHJldGVudGlvbiJdCiAgWzpwb2xpY3ktNDIgOnBvbGljeS9zdGF0ZSAiYXBwcm92ZWQiXQogIFs6cG9saWN5LTQyIDpwb2xpY3kvb3duZXIgImxlZ2FsIl1dKQoodHJhbnNhY3QgW1s6cG9saWN5LTQyIDpwb2xpY3kvb3duZXIgInNlY3VyaXR5Il1dKQ&title=minigraf-examples:+audit+log&vt=any&e=:policy-42&view=map)
+[See this scenario in the time travel visualizer →](https://project-minigraf.github.io/minigraf-visualizer/#data=KHRyYW5zYWN0IFtbOnBvbGljeS00MiA6cG9saWN5L3RpdGxlICJEYXRhIHJldGVudGlvbiJdCiAgWzpwb2xpY3ktNDIgOnBvbGljeS9zdGF0ZSAiYXBwcm92ZWQiXQogIFs6cG9saWN5LTQyIDpwb2xpY3kvb3duZXIgImxlZ2FsIl1dKQoocmV0cmFjdCBbWzpwb2xpY3ktNDIgOnBvbGljeS9vd25lciAibGVnYWwiXV0pCih0cmFuc2FjdCBbWzpwb2xpY3ktNDIgOnBvbGljeS9vd25lciAic2VjdXJpdHkiXV0p&title=minigraf-examples:+audit+log&vt=any&e=:policy-42&view=map)
 
 ## LangChain Integrations
 

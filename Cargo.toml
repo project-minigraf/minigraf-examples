@@ -10,4 +10,4 @@ members = ["minigraf-algorithms", "minigraf-schema"]
 
 [dependencies]
 anyhow = "1.0"
-minigraf = "1.1"
+minigraf = "2.0"

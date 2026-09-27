@@ -1,11 +1,34 @@
 use anyhow::{Result, bail};
-use minigraf::{Minigraf, QueryResult};
+use minigraf::{Minigraf, QueryResult, Value};
 
 fn has_rows(result: QueryResult) -> bool {
     match result {
         QueryResult::QueryResults { results, .. } => !results.is_empty(),
         _ => false,
     }
+}
+
+/// The string values in the first column of a query result, sorted.
+fn strings(result: QueryResult) -> Vec<String> {
+    let mut out = Vec::new();
+    if let QueryResult::QueryResults { results, .. } = result {
+        for row in results {
+            if let Some(Value::String(s)) = row.into_iter().next() {
+                out.push(s);
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
+/// Fail unless `result` holds exactly the one string `expected`.
+fn expect_only(result: QueryResult, expected: &str, what: &str) -> Result<()> {
+    let got = strings(result);
+    if got != [expected] {
+        bail!("{what}: expected only {expected:?}, got {got:?}");
+    }
+    Ok(())
 }
 
 pub fn agentic_memory() -> Result<Vec<&'static str>> {
@@ -17,25 +40,45 @@ pub fn agentic_memory() -> Result<Vec<&'static str>> {
                       [:alice :user/current-project "minigraf-examples"]])"#,
     )?;
 
-    db.execute(
+    let preference = db.execute(
         r#"(query [:find ?preference
                   :where [:alice :user/preference ?preference]])"#,
     )?;
+    expect_only(
+        preference,
+        "concise technical answers",
+        "remembered preference",
+    )?;
 
-    db.execute(
+    let project = db.execute(
         r#"(query [:find ?project
                   :where [:alice :user/current-project ?project]])"#,
     )?;
+    expect_only(project, "minigraf-examples", "current project")?;
 
+    // Replace the preference: retract the old value and assert the new one in
+    // one transaction. Without the retract, both values would stay current.
     let mut tx = db.begin_write()?;
+    tx.execute(r#"(retract [[:alice :user/preference "concise technical answers"]])"#)?;
     tx.execute(r#"(transact [[:alice :user/preference "concise answers with source links"]])"#)?;
     tx.commit()?;
 
-    db.execute(
+    let current = db.execute(
+        r#"(query [:find ?preference
+                  :where [:alice :user/preference ?preference]])"#,
+    )?;
+    expect_only(
+        current,
+        "concise answers with source links",
+        "corrected preference",
+    )?;
+
+    let before = db.execute(
         r#"(query [:find ?preference
                   :as-of 1
                   :where [:alice :user/preference ?preference]])"#,
     )?;
+    expect_only(before, "concise technical answers", "preference as of tx 1")?;
 
     Ok(vec![
         "Agent memory: remembered Alice prefers concise technical answers.",
@@ -56,21 +99,35 @@ pub fn offline_first_mobile() -> Result<Vec<&'static str>> {
                       [:task-2 :device/id "phone"]])"#,
     )?;
 
-    db.execute(
-        r#"(query [:find ?task ?title
+    let pending = db.execute(
+        r#"(query [:find ?title ?task
                   :where [?task :sync/status "pending"]
                          [?task :task/title ?title]])"#,
     )?;
+    let pending = strings(pending);
+    if pending != ["Attach receipt photo", "Draft trip notes"] {
+        bail!("pending changes: expected both tasks, got {pending:?}");
+    }
 
+    // Mark task 1 as synced: retract "pending" and assert "synced" in one
+    // transaction, so the task has a single current status.
     let mut tx = db.begin_write()?;
+    tx.execute(r#"(retract [[:task-1 :sync/status "pending"]])"#)?;
     tx.execute(r#"(transact [[:task-1 :sync/status "synced"]])"#)?;
     tx.commit()?;
 
-    db.execute(
+    let status = db.execute(
+        r#"(query [:find ?status
+                  :where [:task-1 :sync/status ?status]])"#,
+    )?;
+    expect_only(status, "synced", "task-1 status after sync")?;
+
+    let before = db.execute(
         r#"(query [:find ?status
                   :as-of 1
                   :where [:task-1 :sync/status ?status]])"#,
     )?;
+    expect_only(before, "pending", "task-1 status as of tx 1")?;
 
     Ok(vec![
         "Offline mobile: stored two local task changes while disconnected.",
@@ -88,20 +145,25 @@ pub fn audit_log() -> Result<Vec<&'static str>> {
                       [:policy-42 :policy/owner "legal"]])"#,
     )?;
 
+    // Supersede the owner: retract the old value and assert the new one in one
+    // transaction. The old owner stays in transaction-time history.
     let mut tx = db.begin_write()?;
+    tx.execute(r#"(retract [[:policy-42 :policy/owner "legal"]])"#)?;
     tx.execute(r#"(transact [[:policy-42 :policy/owner "security"]])"#)?;
     tx.commit()?;
 
-    db.execute(
+    let owner = db.execute(
         r#"(query [:find ?owner
                   :where [:policy-42 :policy/owner ?owner]])"#,
     )?;
+    expect_only(owner, "security", "current owner")?;
 
-    db.execute(
+    let before = db.execute(
         r#"(query [:find ?owner
                   :as-of 1
                   :where [:policy-42 :policy/owner ?owner]])"#,
     )?;
+    expect_only(before, "legal", "owner as of tx 1")?;
 
     Ok(vec![
         "Audit log: recorded policy approval and superseding revision.",
@@ -158,11 +220,15 @@ pub fn state_machine() -> Result<Vec<&'static str>> {
     )?;
 
     let current = db.execute(
-        r#"(query [:find ?order ?state
-                  :where (current-state? ?order ?state)])"#,
+        r#"(query [:find ?state
+                  :where (current-state? :order-42 ?state)])"#,
     )?;
-    if !has_rows(current) {
-        bail!("order should have a current state");
+    let states = match current {
+        QueryResult::QueryResults { results, .. } => results,
+        _ => Vec::new(),
+    };
+    if states != [vec![Value::Keyword(":paid".to_string())]] {
+        bail!("order should be exactly :paid after the transition, got {states:?}");
     }
 
     let prior = db.execute(
