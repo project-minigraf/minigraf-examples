@@ -51,7 +51,10 @@ fn parse_error_duplicate_entity_block() {
         entity :entity/_type :person { required :email String }
     "#;
     let err = Schema::parse(src).unwrap_err().to_string();
-    assert!(err.contains("duplicate"), "expected 'duplicate' in error: {err}");
+    assert!(
+        err.contains("duplicate"),
+        "expected 'duplicate' in error: {err}"
+    );
 }
 
 #[test]
@@ -77,7 +80,10 @@ fn parse_error_unrecognised_type_token() {
         }
     "#;
     let err = Schema::parse(src).unwrap_err().to_string();
-    assert!(err.contains("Text") || err.contains("unrecognised"), "got: {err}");
+    assert!(
+        err.contains("Text") || err.contains("unrecognised"),
+        "got: {err}"
+    );
 }
 
 #[test]
@@ -95,20 +101,27 @@ fn parse_error_attribute_missing_colon() {
 
 #[test]
 fn validate_passing_all_required_present_and_typed_correctly() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name  String
             required :email String
             optional :age   Integer
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     use minigraf::Value;
     let facts: &[(&str, &str, Value)] = &[
         (":alice", ":entity/_type", Value::Keyword(":person".into())),
-        (":alice", ":name",         Value::String("Alice".into())),
-        (":alice", ":email",        Value::String("alice@example.com".into())),
-        (":alice", ":age",          Value::Integer(30)),
+        (":alice", ":name", Value::String("Alice".into())),
+        (
+            ":alice",
+            ":email",
+            Value::String("alice@example.com".into()),
+        ),
+        (":alice", ":age", Value::Integer(30)),
     ];
 
     assert!(schema.validate(facts).is_empty());
@@ -116,17 +129,20 @@ fn validate_passing_all_required_present_and_typed_correctly() {
 
 #[test]
 fn validate_passing_optional_attribute_absent() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name  String
             optional :age   Integer
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     use minigraf::Value;
     let facts: &[(&str, &str, Value)] = &[
         (":alice", ":entity/_type", Value::Keyword(":person".into())),
-        (":alice", ":name",         Value::String("Alice".into())),
+        (":alice", ":name", Value::String("Alice".into())),
         // :age intentionally absent
     ];
 
@@ -137,17 +153,20 @@ fn validate_passing_optional_attribute_absent() {
 
 #[test]
 fn validate_missing_required_attribute() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name  String
             required :email String
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     use minigraf::Value;
     let facts: &[(&str, &str, Value)] = &[
         (":alice", ":entity/_type", Value::Keyword(":person".into())),
-        (":alice", ":name",         Value::String("Alice".into())),
+        (":alice", ":name", Value::String("Alice".into())),
         // :email missing
     ];
 
@@ -163,16 +182,19 @@ fn validate_missing_required_attribute() {
 
 #[test]
 fn validate_type_mismatch_on_required_attribute() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :age Integer
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     use minigraf::Value;
     let facts: &[(&str, &str, Value)] = &[
         (":alice", ":entity/_type", Value::Keyword(":person".into())),
-        (":alice", ":age",          Value::String("thirty".into())), // wrong type
+        (":alice", ":age", Value::String("thirty".into())), // wrong type
     ];
 
     let errors = schema.validate(facts);
@@ -190,18 +212,21 @@ fn validate_type_mismatch_on_required_attribute() {
 
 #[test]
 fn validate_type_mismatch_on_optional_attribute_when_present() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name String
             optional :age  Integer
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     use minigraf::Value;
     let facts: &[(&str, &str, Value)] = &[
         (":alice", ":entity/_type", Value::Keyword(":person".into())),
-        (":alice", ":name",         Value::String("Alice".into())),
-        (":alice", ":age",          Value::Boolean(true)), // wrong type
+        (":alice", ":name", Value::String("Alice".into())),
+        (":alice", ":age", Value::Boolean(true)), // wrong type
     ];
 
     let errors = schema.validate(facts);
@@ -221,21 +246,27 @@ fn validate_type_mismatch_on_optional_attribute_when_present() {
 
 #[test]
 fn audit_passing_db_state_satisfies_schema() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name  String
             required :email String
             optional :age   Integer
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     let db = minigraf::Minigraf::in_memory().unwrap();
-    db.execute(r#"(transact [
+    db.execute(
+        r#"(transact [
         [:alice :entity/_type :person]
         [:alice :name "Alice"]
         [:alice :email "alice@example.com"]
         [:alice :age 30]
-    ])"#).unwrap();
+    ])"#,
+    )
+    .unwrap();
 
     let errors = schema.audit(&db).unwrap();
     assert!(errors.is_empty(), "expected no errors, got: {:?}", errors);
@@ -245,22 +276,29 @@ fn audit_passing_db_state_satisfies_schema() {
 
 #[test]
 fn audit_missing_required_attribute_after_retraction() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name  String
             required :email String
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     let db = minigraf::Minigraf::in_memory().unwrap();
-    db.execute(r#"(transact [
+    db.execute(
+        r#"(transact [
         [:alice :entity/_type :person]
         [:alice :name "Alice"]
         [:alice :email "alice@example.com"]
-    ])"#).unwrap();
+    ])"#,
+    )
+    .unwrap();
 
     // Retract :email — entity should now fail validation
-    db.execute(r#"(retract [[:alice :email "alice@example.com"]])"#).unwrap();
+    db.execute(r#"(retract [[:alice :email "alice@example.com"]])"#)
+        .unwrap();
 
     let errors = schema.audit(&db).unwrap();
     assert_eq!(errors.len(), 1);
@@ -275,22 +313,29 @@ fn audit_missing_required_attribute_after_retraction() {
 
 #[test]
 fn audit_as_of_entity_valid_before_retraction_invalid_after() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name  String
             required :email String
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     let db = minigraf::Minigraf::in_memory().unwrap();
-    db.execute(r#"(transact [
+    db.execute(
+        r#"(transact [
         [:alice :entity/_type :person]
         [:alice :name "Alice"]
         [:alice :email "alice@example.com"]
-    ])"#).unwrap();
+    ])"#,
+    )
+    .unwrap();
     let tx_before = db.current_tx_count();
 
-    db.execute(r#"(retract [[:alice :email "alice@example.com"]])"#).unwrap();
+    db.execute(r#"(retract [[:alice :email "alice@example.com"]])"#)
+        .unwrap();
     let tx_after = db.current_tx_count();
 
     let errors_before = schema.audit_as_of(&db, tx_before).unwrap();
@@ -302,7 +347,8 @@ fn audit_as_of_entity_valid_before_retraction_invalid_after() {
 
     let errors_after = schema.audit_as_of(&db, tx_after).unwrap();
     assert_eq!(
-        errors_after.len(), 1,
+        errors_after.len(),
+        1,
         "expected 1 error at tx {tx_after}, got: {:?}",
         errors_after
     );
@@ -317,11 +363,14 @@ fn audit_as_of_entity_valid_before_retraction_invalid_after() {
 
 #[test]
 fn validate_open_world_entity_with_no_schema_block_produces_no_violations() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name String
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     use minigraf::Value;
     // Entity with type :project — no schema block for it
@@ -335,16 +384,19 @@ fn validate_open_world_entity_with_no_schema_block_produces_no_violations() {
 
 #[test]
 fn validate_null_on_required_attribute_treated_as_missing() {
-    let schema = Schema::parse(r#"
+    let schema = Schema::parse(
+        r#"
         entity :entity/_type :person {
             required :name String
         }
-    "#).unwrap();
+    "#,
+    )
+    .unwrap();
 
     use minigraf::Value;
     let facts: &[(&str, &str, Value)] = &[
         (":alice", ":entity/_type", Value::Keyword(":person".into())),
-        (":alice", ":name",         Value::Null),
+        (":alice", ":name", Value::Null),
     ];
 
     let errors = schema.validate(facts);
