@@ -131,11 +131,7 @@ impl Schema {
                 .iter()
                 .any(|b| b.type_attr == type_attr && b.type_value == type_value)
             {
-                bail!(
-                    "duplicate entity block for {} {}",
-                    type_attr,
-                    type_value
-                );
+                bail!("duplicate entity block for {} {}", type_attr, type_value);
             }
 
             let mut required: HashMap<String, ValueType> = HashMap::new();
@@ -149,10 +145,7 @@ impl Schema {
                         let attr = parse_keyword(&tokens, &mut pos)?;
                         let vtype = parse_value_type(&tokens, &mut pos)?;
                         if optional.contains_key(&attr) {
-                            bail!(
-                                "attribute {} appears in both required and optional",
-                                attr
-                            );
+                            bail!("attribute {} appears in both required and optional", attr);
                         }
                         required.insert(attr, vtype);
                     }
@@ -160,17 +153,11 @@ impl Schema {
                         let attr = parse_keyword(&tokens, &mut pos)?;
                         let vtype = parse_value_type(&tokens, &mut pos)?;
                         if required.contains_key(&attr) {
-                            bail!(
-                                "attribute {} appears in both required and optional",
-                                attr
-                            );
+                            bail!("attribute {} appears in both required and optional", attr);
                         }
                         optional.insert(attr, vtype);
                     }
-                    other => bail!(
-                        "expected 'required', 'optional', or '}}', got {:?}",
-                        other
-                    ),
+                    other => bail!("expected 'required', 'optional', or '}}', got {:?}", other),
                 }
             }
 
@@ -372,7 +359,11 @@ impl Schema {
                 type_value = block.type_value,
             );
             let result = db.execute(&type_query)?;
-            let QueryResult::QueryResults { results: entity_rows, .. } = result else {
+            let QueryResult::QueryResults {
+                results: entity_rows,
+                ..
+            } = result
+            else {
                 bail!("expected QueryResults from entity type query");
             };
 
@@ -395,7 +386,10 @@ impl Schema {
                     entity_ref = entity_ref,
                 );
                 let attr_result = db.execute(&attr_query)?;
-                let QueryResult::QueryResults { results: attr_rows, .. } = attr_result else {
+                let QueryResult::QueryResults {
+                    results: attr_rows, ..
+                } = attr_result
+                else {
                     bail!("expected QueryResults from attribute query");
                 };
 
@@ -419,7 +413,6 @@ impl Schema {
         Ok(errors)
     }
 }
-
 
 /// Format a `Value` as a human-readable entity identifier for error reporting.
 fn entity_display(v: &Value) -> String {
