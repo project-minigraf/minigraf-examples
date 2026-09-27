@@ -312,20 +312,20 @@ fn check_block(
     }
 
     for (attr, expected) in &block.optional {
-        if let Some(value) = attrs.get(attr.as_str()) {
-            if let Some(actual) = value_type_of(value) {
-                if actual != *expected {
-                    errors.push(ValidationError {
-                        entity: entity.to_string(),
-                        kind: ValidationErrorKind::TypeMismatch {
-                            attribute: attr.clone(),
-                            expected: expected.clone(),
-                            actual,
-                        },
-                    });
-                }
-            }
-            // Value::Null on an optional attribute is treated as absent — no violation
+        // Value::Null on an optional attribute is treated as absent — no violation
+        // (value_type_of returns None for it).
+        if let Some(value) = attrs.get(attr.as_str())
+            && let Some(actual) = value_type_of(value)
+            && actual != *expected
+        {
+            errors.push(ValidationError {
+                entity: entity.to_string(),
+                kind: ValidationErrorKind::TypeMismatch {
+                    attribute: attr.clone(),
+                    expected: expected.clone(),
+                    actual,
+                },
+            });
         }
     }
 }
